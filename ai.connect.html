@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect Four - Best of Three</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #ff4fd8;
+      color: #1f2937;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 780px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+      padding: 24px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+
+    .subtitle {
+      margin-bottom: 18px;
+      color: #4b5563;
+    }
+
+    .status-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      background: #ffe3fb;
+      border-radius: 14px;
+      padding: 12px;
+      font-weight: 700;
+    }
+
+    .current-player {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .token-preview {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 0, 0, 0.15);
+      display: inline-block;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .new-match-btn {
+      display: none;
+      margin: 18px auto 0;
+      background: #111827;
+      color: white;
+    }
+
+    .new-match-btn.show {
+      display: inline-block;
+    }
+
+    .board-wrapper {
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .drop-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      width: fit-content;
+      margin: 0 auto 10px;
+    }
+
+    .drop-btn {
+      width: 72px;
+      height: 42px;
+      border-radius: 12px;
+      background: #ffd2f7;
+      color: #0f172a;
+      font-size: 1.3rem;
+      font-weight: 900;
+    }
+
+    .drop-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+    }
+
+    .board {
+      background: #00a2ff;
+      border-radius: 22px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(7, 72px);
+      gap: 8px;
+      width: fit-content;
+      margin: 0 auto;
+      box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.12);
+    }
+
+    .cell {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #d9f4ff;
+      border: 4px solid rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .cell.winning {
+      box-shadow: 0 0 0 5px #fff200 inset, 0 0 18px rgba(255, 242, 0, 0.95);
+      transform: scale(1.03);
+    }
+
+    .token {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      box-shadow: inset 0 10px 14px rgba(255, 255, 255, 0.28), inset 0 -8px 14px rgba(0, 0, 0, 0.15);
+    }
+
+    .purple {
+      background: #b100ff;
+    }
+
+    .green {
+      background: #39ff14;
+    }
+
+    .message {
+      margin-top: 16px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      min-height: 28px;
+    }
+
+    .legend {
+      margin-top: 12px;
+      color: #4b5563;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 640px) {
+      .drop-btn,
+      .cell {
+        width: 44px;
+      }
+
+      .drop-btn {
+        height: 34px;
+      }
+
+      .cell {
+        height: 44px;
+      }
+
+      .board {
+        grid-template-columns: repeat(7, 44px);
+      }
+
+      .token {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1>Connect Four</h1>
+    <div class="subtitle">Best of 3 games • You are Purple • Computer is Green</div>
+
+    <div class="status-bar">
+      <div class="panel">
+        Round: <span id="roundNumber">1</span> / 3
+      </div>
+      <div class="panel">
+        You: <span id="purpleScore">0</span> | Computer: <span id="greenScore">0</span>
+      </div>
+      <div class="panel current-player">
+        Turn:
+        <span id="turnToken" class="token-preview purple"></span>
+        <span id="turnText">You</span>
+      </div>
+    </div>
+
+    <div class="board-wrapper">
+      <div class="drop-row" id="dropRow"></div>
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="message" id="message">Your turn. Pick a column.</div>
+    <div class="legend">Click the arrow above any column to drop your token there.</div>
+    <button class="new-match-btn" id="newMatchBtn">New Match</button>
+  </div>
+
+  <script>
+    const ROWS = 6;
+    const COLS = 7;
+    const EMPTY = 0;
+    const PURPLE = 1;
+    const GREEN = 2;
+    const ROUND_DELAY = 1800;
+    const COMPUTER_DELAY = 550;
+
+    let board = [];
+    let currentPlayer = PURPLE;
+    let gameOver = false;
+    let roundNumber = 1;
+    let scores = {
+      [PURPLE]: 0,
+      [GREEN]: 0
+    };
+    let matchOver = false;
+    let waitingForComputer = false;
+
+    const boardEl = document.getElementById('board');
+    const dropRowEl = document.getElementById('dropRow');
+    const messageEl = document.getElementById('message');
+    const purpleScoreEl = document.getElementById('purpleScore');
+    const greenScoreEl = document.getElementById('greenScore');
+    const roundNumberEl = document.getElementById('roundNumber');
+    const turnTextEl = document.getElementById('turnText');
+    const turnTokenEl = document.getElementById('turnToken');
+    const newMatchBtn = document.getElementById('newMatchBtn');
+
+    function createEmptyBoard() {
+      return Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
+    }
+
+    function playerName(player) {
+      return player === PURPLE ? 'You' : 'Computer';
+    }
+
+    function playerClass(player) {
+      return player === PURPLE ? 'purple' : 'green';
+    }
+
+    function init() {
+      board = createEmptyBoard();
+      currentPlayer = PURPLE;
+      gameOver = false;
+      matchOver = false;
+      waitingForComputer = false;
+      roundNumber = 1;
+      scores[PURPLE] = 0;
+      scores[GREEN] = 0;
+      messageEl.textContent = 'Your turn. Pick a column.';
+      newMatchBtn.classList.remove('show');
+      renderBoard();
+      updateStatus();
+    }
+
+    function startNextRound() {
+      board = createEmptyBoard();
+      currentPlayer = PURPLE;
+      gameOver = false;
+      waitingForComputer = false;
+      messageEl.textContent = `Round ${roundNumber}: Your turn.`;
+      renderBoard();
+      updateStatus();
+    }
+
+    function renderDropButtons() {
+      dropRowEl.innerHTML = '';
+
+      for (let col = 0; col < COLS; col++) {
+        const btn = document.createElement('button');
+        btn.className = 'drop-btn';
+        btn.innerHTML = '&#9660;';
+        btn.setAttribute('aria-label', `Drop token in column ${col + 1}`);
+        btn.disabled = gameOver || matchOver || waitingForComputer || currentPlayer !== PURPLE || board[0][col] !== EMPTY;
+        btn.addEventListener('click', () => handleMove(col));
+        dropRowEl.appendChild(btn);
+      }
+    }
+
+    function renderBoard(winningCells = []) {
+      boardEl.innerHTML = '';
+
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+
+          const isWinningCell = winningCells.some(([r, c]) => r === row && c === col);
+          if (isWinningCell) {
+            cell.classList.add('winning');
+          }
+
+          if (board[row][col] !== EMPTY) {
+            const token = document.createElement('div');
+            token.className = `token ${playerClass(board[row][col])}`;
+            cell.appendChild(token);
+          }
+
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function updateStatus() {
+      purpleScoreEl.textContent = scores[PURPLE];
+      greenScoreEl.textContent = scores[GREEN];
+      roundNumberEl.textContent = roundNumber;
+      turnTextEl.textContent = matchOver ? 'Match Over' : playerName(currentPlayer);
+      turnTokenEl.className = `token-preview ${matchOver ? 'purple' : playerClass(currentPlayer)}`;
+      renderDropButtons();
+    }
+
+    function getOpenRow(col) {
+      for (let row = ROWS - 1; row >= 0; row--) {
+        if (board[row][col] === EMPTY) {
+          return row;
+        }
+      }
+      return -1;
+    }
+
+    function getAvailableColumns() {
+      const columns = [];
+      for (let col = 0; col < COLS; col++) {
+        if (board[0][col] === EMPTY) columns.push(col);
+      }
+      return columns;
+    }
+
+    function handleMove(col) {
+      if (gameOver || matchOver || waitingForComputer || currentPlayer !== PURPLE) return;
+      placeToken(col, PURPLE);
+    }
+
+    function placeToken(col, player) {
+      const row = getOpenRow(col);
+      if (row === -1) return;
+
+      board[row][col] = player;
+      const winData = checkWin(row, col, player);
+
+      if (winData.won) {
+        gameOver = true;
+        scores[player] += 1;
+        renderBoard(winData.cells);
+        finishRound(player);
+        return;
+      }
+
+      if (isBoardFull()) {
+        gameOver = true;
+        renderBoard();
+        finishRound(null);
+        return;
+      }
+
+      currentPlayer = player === PURPLE ? GREEN : PURPLE;
+      renderBoard();
+      updateStatus();
+
+      if (currentPlayer === GREEN) {
+        waitingForComputer = true;
+        messageEl.textContent = 'Computer is thinking...';
+        updateStatus();
+        window.setTimeout(computerMove, COMPUTER_DELAY);
+      } else {
+        messageEl.textContent = 'Your turn.';
+      }
+    }
+
+    function computerMove() {
+      if (gameOver || matchOver) return;
+
+      const col = chooseComputerColumn();
+      waitingForComputer = false;
+      placeToken(col, GREEN);
+    }
+
+    function chooseComputerColumn() {
+      const available = getAvailableColumns();
+
+      for (const col of available) {
+        if (wouldWin(col, GREEN)) return col;
+      }
+
+      for (const col of available) {
+        if (wouldWin(col, PURPLE)) return col;
+      }
+
+      const centerPreference = [3, 2, 4, 1, 5, 0, 6];
+      for (const col of centerPreference) {
+        if (available.includes(col)) return col;
+      }
+
+      return available[Math.floor(Math.random() * available.length)];
+    }
+
+    function wouldWin(col, player) {
+      const row = getOpenRow(col);
+      if (row === -1) return false;
+
+      board[row][col] = player;
+      const won = checkWin(row, col, player).won;
+      board[row][col] = EMPTY;
+      return won;
+    }
+
+    function finishRound(winner) {
+      updateStatus();
+
+      if (winner === PURPLE) {
+        messageEl.textContent = `You win Round ${roundNumber}!`;
+      } else if (winner === GREEN) {
+        messageEl.textContent = `Computer wins Round ${roundNumber}.`;
+      } else {
+        messageEl.textContent = `Round ${roundNumber} is a draw.`;
+      }
+
+      if (roundNumber >= 3) {
+        window.setTimeout(endMatch, ROUND_DELAY);
+        return;
+      }
+
+      roundNumber += 1;
+      window.setTimeout(startNextRound, ROUND_DELAY);
+    }
+
+    function endMatch() {
+      matchOver = true;
+      currentPlayer = PURPLE;
+
+      if (scores[PURPLE] > scores[GREEN]) {
+        messageEl.textContent = 'You win the best-of-3 match!';
+      } else if (scores[GREEN] > scores[PURPLE]) {
+        messageEl.textContent = 'Computer wins the best-of-3 match.';
+      } else {
+        messageEl.textContent = 'The match ends in a tie.';
+      }
+
+      newMatchBtn.classList.add('show');
+      updateStatus();
+    }
+
+    function isBoardFull() {
+      return board[0].every(cell => cell !== EMPTY);
+    }
+
+    function checkWin(row, col, player) {
+      const directions = [
+        [0, 1],
+        [1, 0],
+        [1, 1],
+        [1, -1]
+      ];
+
+      for (const [dr, dc] of directions) {
+        const cells = [[row, col]];
+
+        let r = row + dr;
+        let c = col + dc;
+        while (isInside(r, c) && board[r][c] === player) {
+          cells.push([r, c]);
+          r += dr;
+          c += dc;
+        }
+
+        r = row - dr;
+        c = col - dc;
+        while (isInside(r, c) && board[r][c] === player) {
+          cells.unshift([r, c]);
+          r -= dr;
+          c -= dc;
+        }
+
+        if (cells.length >= 4) {
+          return { won: true, cells };
+        }
+      }
+
+      return { won: false, cells: [] };
+    }
+
+    function isInside(row, col) {
+      return row >= 0 && row < ROWS && col >= 0 && col < COLS;
+    }
+
+    newMatchBtn.addEventListener('click', init);
+
+    init();
+  </script>
+</body>
+</html>
